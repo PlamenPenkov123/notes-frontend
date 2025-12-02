@@ -2,11 +2,23 @@ import { Component, createSignal, createResource } from "solid-js";
 import { RemoteRepository } from "../domain/repository/RemoteRepository";
 import NotesList from "../components/notes/NotesList";
 import CreateNoteModal from "../components/notes/CreateNoteModal";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "@solidjs/router";
 
 const remoteRepository = new RemoteRepository();
 
 const NotesPage: Component = () => {
-  const [notes, { refetch }] = createResource(() => remoteRepository.getNotes());
+  const { token } = useAuth()
+  const [notes, { refetch }] = createResource(
+    () => token(),                   // depends on token
+    (tok) => tok ? remoteRepository.getNotes(tok) : Promise.resolve([])  // fallback
+  );
+
+  const navigate = useNavigate();
+  if (!token()) {
+    navigate("/login", { replace: true });
+    return null;
+  }
 
   // Signal to open/close the CreateNoteModal
   const [createModalOpen, setCreateModalOpen] = createSignal(false);

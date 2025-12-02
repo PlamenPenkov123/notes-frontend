@@ -1,55 +1,103 @@
-import { Note } from "../entity/Note";
+import type { User } from "../entity/User";
+import type { Note } from "../entity/Note";
 
 export class RemoteRepository {
-    async getNotes(): Promise<Note[]> {
-        const response = await fetch(`/api/notes`, {
-            method: 'GET',
-        });
+
+    private async request<T>(
+        url: string,
+        options: RequestInit = {},
+        token?: string
+    ): Promise<T> {
+        const headers: HeadersInit = {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+
+        const response = await fetch(url, { ...options, headers });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch notes');
+            const message = await response.text();
+            throw new Error(message || `Request failed (${response.status})`);
         }
 
-        const data = await response.json();
-        return data;
+        return response.json() as Promise<T>;
     }
 
-    async createNote(note: Omit<Note, 'id'>): Promise<Note> {
-        const response = await fetch(`/api/notes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(note)
-        });
+    // -------------------------------------------------------------------------
+    // AUTH
+    // -------------------------------------------------------------------------
 
-        if (!response.ok) {
-            throw new Error('Failed to create note');
-        }
-
-        const data = await response.json();
-        return data;
+    register(username: string, email: string, password: string, passwordConfirm: string) {
+        return this.request<{ message: string }>(
+            "/api/auth/register",
+            {
+                method: "POST",
+                body: JSON.stringify({ username, email, password, passwordConfirm })
+            }
+        );
     }
 
-    async updateNote(noteId: string, note: Omit<Note, 'id'>): Promise<Note> {
-        const response = await fetch(`/api/notes/${noteId}`, {
-            method: "PATCH",
-            headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify(note)
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to update note');
-        }
-
-        const data = await response.json();
-        return data;
+    login(email: string, password: string) {
+        return this.request<{ token: string }>(
+            "/api/auth/login",
+            {
+                method: "POST",
+                body: JSON.stringify({ email, password })
+            }
+        );
     }
 
-    async deleteNote(id: string): Promise<void> {
-        const response = await fetch(`/api/notes/${id}`, {
-            method: 'DELETE',
-        })
-        if (!response.ok) {
-            throw new Error('Failed to delete note');
-        }
+    logout(token: string) {
+        return this.request<{ message: string }>(
+            "/api/auth/logout",
+            {
+                method: "POST",
+            },
+            token
+        );
+    }
+
+    getUser(token: string): Promise<User | null> {
+        if (!token) return Promise.resolve(null);
+        return this.request<User>("/api/users/me", { method: "GET" }, token);
+    }
+
+    // -------------------------------------------------------------------------
+    // NOTES
+    // -------------------------------------------------------------------------
+
+    getNotes(token: string): Promise<Note[] | null> {
+        if (!token) return Promise.resolve(null);
+        return this.request<Note[]>("/api/notes", { method: "GET" }, token);
+    }
+
+    createNote(token: string, note: Omit<Note, "id">): Promise<Note> {
+        return this.request<Note>(
+            "/api/notes",
+            {
+                method: "POST",
+                body: JSON.stringify(note)
+            },
+            token
+        );
+    }
+
+    updateNote(token: string, id: string, note: Omit<Note, "id">): Promise<Note> {
+        return this.request<Note>(
+            `/api/notes/${id}`,
+            {
+                method: "PATCH",
+                body: JSON.stringify(note)
+            },
+            token
+        );
+    }
+
+    deleteNote(token: string, id: string): Promise<void> {
+        return this.request<void>(
+            `/api/notes/${id}`,
+            { method: "DELETE" },
+            token
+        );
     }
 }

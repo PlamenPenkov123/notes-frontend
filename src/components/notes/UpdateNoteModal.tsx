@@ -1,6 +1,8 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, Show, onCleanup } from "solid-js";
 import { RemoteRepository } from "../../domain/repository/RemoteRepository";
 import { Note } from "../../domain/entity/Note";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext"; // ✅ import toast
 
 const remoteRepository = new RemoteRepository();
 
@@ -11,12 +13,36 @@ export default function UpdateNoteModal(props: {
   const [title, setTitle] = createSignal("");
   const [content, setContent] = createSignal("");
   const [loading, setLoading] = createSignal(false);
+  const { token } = useAuth();
+  const { showToast } = useToast(); // ✅ toast hook
 
-  // Populate fields when note changes
+  const [open, setOpen] = createSignal(false);
+
+  // Populate fields + trigger enter animation
   createEffect(() => {
     if (props.note) {
       setTitle(props.note.title);
       setContent(props.note.content);
+      requestAnimationFrame(() => setOpen(true));
+    } else {
+      setOpen(false);
+    }
+  });
+
+  const close = () => {
+    setOpen(false);
+    const ANIM_DURATION = 300;
+    setTimeout(() => props.onClose(), ANIM_DURATION);
+  };
+
+  const handleKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") close();
+  };
+
+  createEffect(() => {
+    if (props.note) {
+      window.addEventListener("keydown", handleKey);
+      onCleanup(() => window.removeEventListener("keydown", handleKey));
     }
   });
 
@@ -26,60 +52,93 @@ export default function UpdateNoteModal(props: {
 
     setLoading(true);
 
-    await remoteRepository.updateNote(props.note.id, {
-      title: title().trim(),
-      content: content().trim(),
-    });
+    try {
+      await remoteRepository.updateNote(token()!, props.note.id, {
+        title: title().trim(),
+        content: content().trim(),
+      });
+
+      showToast("Note updated successfully!", "success"); // ✅ success toast
+      setTitle("");
+      setContent("");
+      close();
+
+    } catch (err) {
+      showToast("Failed to update note", "error"); // ❌ error toast
+    }
 
     setLoading(false);
-    setTitle("");
-    setContent("");
-
-    props.onClose();
   };
 
   return (
     <Show when={props.note}>
-      <div class="fixed inset-0 flex justify-center items-center z-50 backdrop-blur-sm bg-black/40">
+      <div class="fixed inset-0 z-50 flex items-center justify-center">
 
-        {/* Centered Card */}
-        <div class="relative bg-gray-800 text-white p-6 rounded-2xl shadow-2xl w-11/12 max-w-lg flex flex-col">
+        {/* Backdrop */}
+        <div
+          class={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+            open() ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={close}
+        />
 
-          {/* Title */}
-          <h2 class="text-3xl font-bold mb-5 text-green-500 text-center">
-            Update Note
-          </h2>
+        {/* Modal */}
+        <div
+          class={`relative z-10 w-11/12 max-w-4xl max-h-[90vh] flex flex-col 
+                      bg-gray-800 text-white rounded-3xl shadow-2xl 
+                      transform transition-all duration-300 ease-[cubic-bezier(.2,.9,.3,1)]
+                      ${
+                        open()
+                          ? "opacity-100 translate-y-0 scale-100"
+                          : "opacity-0 translate-y-6 scale-95"
+                      }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <header class="px-8 pt-8 pb-4">
+            <h2 class="text-4xl font-extrabold text-yellow-400 text-center">
+              Update Note
+            </h2>
+          </header>
 
-          {/* Input Fields */}
-          <input
-            class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 mb-4 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-            type="text"
-            placeholder="Title"
-            value={title()}
-            onInput={(e) => setTitle(e.currentTarget.value)}
-          />
+          {/* Scrollable form */}
+          <div class="px-8 pb-6 overflow-y-auto max-h-[60vh] space-y-5">
+            <input
+              class="w-full bg-gray-700 border border-gray-600 rounded-xl p-4 
+                     placeholder-gray-400 focus:outline-none focus:ring-2 
+                     focus:ring-yellow-500 transition text-lg"
+              type="text"
+              placeholder="Title"
+              value={title()}
+              onInput={(e) => setTitle(e.currentTarget.value)}
+            />
 
-          <textarea
-            class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 h-36 mb-5 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition resize-none"
-            placeholder="Content"
-            value={content()}
-            onInput={(e) => setContent(e.currentTarget.value)}
-          />
+            <textarea
+              class="w-full bg-gray-700 border border-gray-600 rounded-xl p-4 
+                     placeholder-gray-400 focus:outline-none focus:ring-2 
+                     focus:ring-yellow-500 transition resize-none text-lg 
+                     min-h-48 whitespace-pre-wrap wrap-break-word"
+              placeholder="Content"
+              value={content()}
+              onInput={(e) => setContent(e.currentTarget.value)}
+            />
+          </div>
 
-          {/* Action Buttons */}
-          <div class="flex justify-end gap-3">
+          {/* Footer */}
+          <div class="px-8 pb-8 flex justify-end gap-3">
             <button
-              class="px-5 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={props.onClose}
+              class="px-6 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 transition disabled:opacity-50"
               disabled={loading()}
+              onClick={close}
             >
               Cancel
             </button>
 
             <button
-              class="px-5 py-2 bg-green-500 rounded-lg hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleUpdate}
+              class="px-6 py-3 rounded-xl bg-yellow-500 hover:bg-yellow-600 
+                     transition disabled:opacity-50"
               disabled={loading()}
+              onClick={handleUpdate}
             >
               {loading() ? "Updating..." : "Update"}
             </button>

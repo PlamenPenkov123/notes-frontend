@@ -5,16 +5,20 @@ import { RemoteRepository } from './domain/repository/RemoteRepository';
 import Header from './components/general/Header';
 import CreateNoteModal from './components/notes/CreateNoteModal';
 import Footer from './components/general/Footer';
+import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 
 const remoteRepository = new RemoteRepository;
 
 const App: Component = (props: any) => {
   return (
-    <div>
-      <Header />
-      {props.children}
-      <Footer />
-    </div>
+    <AuthProvider>
+      <ToastProvider>
+        <Header />
+          {props.children}
+        <Footer />
+      </ToastProvider>
+    </AuthProvider>
   )
 };
 
