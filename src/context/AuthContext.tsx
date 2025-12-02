@@ -36,6 +36,7 @@ export const AuthProvider = (props: any) => {
 
   const register = async (username: string, email: string, password: string, passwordConfirm: string) => {
     await repo.register(username, email, password, passwordConfirm);
+    navigate('/login');
     // optional: auto-login here if you want
   };
 
