@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    container_name: notes-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    restart: always

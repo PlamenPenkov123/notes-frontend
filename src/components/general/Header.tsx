@@ -9,6 +9,9 @@ const Header: Component = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Helper to close menu
+  const closeMenu = () => setMenuOpen(false);
+
   return (
     <header class="w-full sticky top-0 z-50 bg-gray-900/80 backdrop-blur-md shadow-lg">
       <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -91,6 +94,7 @@ const Header: Component = () => {
               <>
                 <A
                   href="/login"
+                  onClick={closeMenu} // Added closeMenu
                   class={`block px-3 py-2 rounded-lg ${
                     isActive("/login") ? "bg-green-600" : "bg-gray-600 hover:bg-gray-500"
                   }`}
@@ -99,6 +103,7 @@ const Header: Component = () => {
                 </A>
                 <A
                   href="/register"
+                  onClick={closeMenu} // Added closeMenu
                   class={`block px-3 py-2 rounded-lg ${
                     isActive("/register") ? "bg-green-600" : "bg-gray-600 hover:bg-gray-500"
                   }`}
@@ -111,6 +116,7 @@ const Header: Component = () => {
             <>
               <A
                 href="/notes"
+                onClick={closeMenu} // Added closeMenu
                 class={`block px-3 py-2 rounded-lg ${
                   isActive("/notes") ? "bg-blue-600" : "bg-gray-600 hover:bg-gray-500"
                 }`}
@@ -119,6 +125,7 @@ const Header: Component = () => {
               </A>
               <A
                 href="/profile"
+                onClick={closeMenu} // Added closeMenu
                 class={`block px-3 py-2 rounded-lg ${
                   isActive("/profile") ? "bg-blue-600" : "bg-gray-600 hover:bg-gray-500"
                 }`}
@@ -127,7 +134,7 @@ const Header: Component = () => {
               </A>
               <button
                 class="block w-full text-left px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700"
-                onClick={() => { logout(); setMenuOpen(false); }}
+                onClick={() => { logout(); closeMenu(); }} 
               >
                 Logout
               </button>
